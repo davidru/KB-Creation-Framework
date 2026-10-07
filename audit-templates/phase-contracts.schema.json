@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-creation-framework.local/schemas/v3.1.12/phase-contracts.schema.json",
+  "title": "KB Creation Framework — Phase Contracts",
+  "description": "Schema for audit-templates/phase-contracts.yaml (v3.1.12+). Declares each phase prompt's consumes/produces contract so Validate-Pipeline.ps1 can verify the framework's end-to-end DAG before model spend.",
+  "type": "object",
+  "required": ["framework_version", "phases"],
+  "additionalProperties": true,
+  "properties": {
+    "framework_version": { "type": "string", "pattern": "^v3\\.1\\.\\d+$" },
+    "external_inputs": {
+      "type": "array",
+      "description": "Artifact paths produced outside the framework's prompt pipeline (e.g., the operator's raw research questions, primary sources retrieved by adapters). Treated as 'always available' for consumes-check.",
+      "items": { "type": "string" }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["phase_id", "name", "prompt"],
+        "additionalProperties": true,
+        "properties": {
+          "phase_id": { "type": "string", "pattern": "^\\d+(\\.\\d+)?[a-z]?$" },
+          "name": { "type": "string", "minLength": 1 },
+          "prompt": { "type": "string", "minLength": 1, "description": "Relative path to the phase prompt file." },
+          "consumes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Artifact paths (relative to KB root) the phase requires as input. Validate-Pipeline.ps1 verifies each is produced by an earlier phase or listed in external_inputs."
+          },
+          "produces": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Artifact paths this phase writes to KB root."
+          },
+          "rule_19_role": {
+            "type": "string",
+            "enum": ["assignment", "producer", "verifier", "neutral"],
+            "description": "assignment: sets up Rule 19 (Phase 0.0). producer: generates content checked by a verifier. verifier: checks content from a producer (must be cross-family per Rule 19). neutral: not subject to Rule 19 (e.g., framework scripts)."
+          },
+          "rule_19_pair": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "For verifier phases: [verifier_phase_id, producer_phase_id]. Verifier's actual_family MUST differ from producer's actual_family per Rule 19."
+          },
+          "optional": {
+            "type": "boolean",
+            "default": false,
+            "description": "If true, the phase may be skipped without failing Validate-Pipeline.ps1 coverage check."
+          },
+          "iteration": {
+            "type": "object",
+            "description": "Loop semantics per haystack pipeline-loop pattern. If absent, phase runs once.",
+            "properties": {
+              "max_iterations": { "type": "integer", "minimum": 1 },
+              "termination_condition": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-creation-framework.local/schemas/v3.1.13/source-registry.schema.json",
+  "title": "KB Creation Framework — Primary-Source Registry",
+  "description": "Schema for sources/source-registry.yaml (v3.1.13+). Declares the primary sources a KB watches. Used by adapters/primary-source/ to pre-fetch sources at Phase 1.1 and diff-detect at Phase 6.3. Operator curates this file before Phase 0.0.",
+  "type": "object",
+  "required": ["framework_version", "sources"],
+  "additionalProperties": false,
+  "properties": {
+    "framework_version": { "type": "string", "pattern": "^v3\\.1\\.\\d+$" },
+    "default_cache_path": {
+      "type": "string",
+      "description": "Default cache directory relative to KB root. Defaults to 'external/primary-sources/cache' when absent."
+    },
+    "auto_fetch_on_phase_1_1": {
+      "type": "boolean",
+      "default": true,
+      "description": "If true, Phase 1.1 (Builder Research) pre-fetches all declared sources before dispatching builders. If false, sources must be fetched manually."
+    },
+    "drift_report_on_phase_6_3": {
+      "type": "boolean",
+      "default": true,
+      "description": "If true, Phase 6.3 (Extraction) re-fetches all sources and writes sources/source_drift_report.md flagging amendments."
+    },
+    "sources": {
+      "type": "array",
+      "description": "List of primary sources this KB watches.",
+      "items": {
+        "type": "object",
+        "required": ["id", "adapter", "ref"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "description": "Operator-assigned identifier, unique within this registry." },
+          "adapter": {
+            "type": "string",
+            "enum": ["ecfr", "federal-register", "congress", "govinfo"],
+            "description": "Which adapter to use for this source."
+          },
+          "ref": {
+            "type": "object",
+            "description": "Adapter-specific reference. Required keys vary by adapter.",
+            "additionalProperties": true,
+            "properties": {
+              "cite_string": { "type": "string", "description": "For ecfr: e.g. '17 CFR 240.10b-5'. For federal-register cite: e.g. '85 FR 12345'." },
+              "document_number": { "type": "string", "description": "For federal-register: e.g. '2020-12345'." },
+              "docket_id": { "type": "string", "description": "For federal-register: agency docket ID." },
+              "congress": { "type": "integer", "minimum": 1, "description": "For congress: Congress number." },
+              "bill_type": { "type": "string", "enum": ["hr","s","hjres","sjres","hconres","sconres","hres","sres"] },
+              "bill_number": { "type": "integer", "minimum": 1 },
+              "public_law": { "type": "string", "description": "For congress / govinfo PLAW: e.g. '117-103'." },
+              "package_id": { "type": "string", "description": "For govinfo: direct package id." },
+              "collection": { "type": "string", "enum": ["FR","USCODE","PLAW","BILLS","STATUTE","CFR"], "description": "For govinfo." },
+              "year": { "type": "integer", "description": "For govinfo USCODE." },
+              "title": { "type": "string", "description": "For govinfo USCODE/CFR." },
+              "section": { "type": "string", "description": "For govinfo USCODE." },
+              "law_number": { "type": "integer", "description": "For govinfo PLAW." },
+              "as_of": { "type": "string", "format": "date", "description": "For ecfr: optional effective date." }
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Operator-assigned tags (e.g., topic ids, jurisdictions, register tiers)."
+          },
+          "criticality": {
+            "type": "string",
+            "enum": ["foundational", "supporting", "context"],
+            "default": "supporting",
+            "description": "foundational = KB cannot be correct without this source; supporting = adds depth; context = nice-to-have. drift in foundational sources should block the build."
+          }
+        }
+      }
+    }
+  }
+}

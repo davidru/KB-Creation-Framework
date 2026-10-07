@@ -1,0 +1,125 @@
+# KB Creation Framework v3.1 Model Registry example
+# Copy this file to model-registry.yaml and edit handles, deployment names, and env vars.
+# Secrets are always referenced by env:VAR_NAME; never paste API keys into this file.
+version: 1
+recommended_assignment:
+  lead: lead-premium-copilot-opus
+  builder_a: builder-openrouter-gemini-flash
+  builder_b: builder-openrouter-gpt-oss-120b
+  critic_pool: [critic-local-llama, critic-local-mistral]
+  factcheck_pool_5a_5b_5c: [factcheck-copilot-gpt55, factcheck-openrouter-deepseek]
+  auditor_7: auditor-copilot-gemini-pro
+notes: "Worked example: Copilot CLI premium Lead, OpenRouter cost-efficient builders, and local Ollama critics."
+models:
+  - handle: lead-premium-copilot-opus
+    family: anthropic
+    provider: copilot-cli
+    model_id: claude-opus-4.7
+    endpoint: env:COPILOT_CLI_ENDPOINT
+    api_key: env:COPILOT_CLI_TOKEN
+    capabilities: [text, tools, long-context, reasoning, premium-lead]
+    notes: "Premium Lead/orchestrator option through the existing Copilot CLI task host."
+  - handle: factcheck-copilot-gpt55
+    family: openai
+    provider: copilot-cli
+    model_id: gpt-5.5
+    endpoint: env:COPILOT_CLI_ENDPOINT
+    api_key: env:COPILOT_CLI_TOKEN
+    capabilities: [text, tools, reasoning, fact-check]
+    notes: "OpenAI-family Copilot CLI option for fact-check or adversarial review."
+  - handle: auditor-copilot-gemini-pro
+    family: google
+    provider: copilot-cli
+    model_id: gemini-3.1-pro-preview
+    endpoint: env:COPILOT_CLI_ENDPOINT
+    api_key: env:COPILOT_CLI_TOKEN
+    capabilities: [text, tools, long-context, audit]
+    notes: "Google-family Copilot CLI auditor option for Rule 19 separation."
+  - handle: fast-copilot-mai-code
+    family: internal-microsoft
+    provider: copilot-cli
+    model_id: mai-code-1-flash-internal
+    endpoint: env:COPILOT_CLI_ENDPOINT
+    api_key: env:COPILOT_CLI_TOKEN
+    capabilities: [text, tools, coding, low-latency]
+    notes: "Internal Microsoft-family option when available in the host's model menu."
+  - handle: azure-gpt4o-production
+    family: openai
+    provider: azure-foundry
+    model_id: gpt-4o-prod
+    endpoint: env:AZURE_FOUNDRY_ENDPOINT
+    api_key: env:AZURE_FOUNDRY_API_KEY
+    capabilities: [text, tools, vision, enterprise-control]
+    notes: "Azure AI Foundry deployment name for an OpenAI-family production endpoint."
+  - handle: azure-mai-reasoning
+    family: internal-microsoft
+    provider: azure-foundry
+    model_id: mai-reasoning-prod
+    endpoint: env:AZURE_FOUNDRY_ENDPOINT
+    api_key: env:AZURE_FOUNDRY_API_KEY
+    capabilities: [text, tools, reasoning, enterprise-control]
+    notes: "Azure-hosted internal Microsoft-family deployment example."
+  - handle: azure-deepseek-r1
+    family: deepseek
+    provider: azure-foundry
+    model_id: deepseek-r1-prod
+    endpoint: env:AZURE_FOUNDRY_ENDPOINT
+    api_key: env:AZURE_FOUNDRY_API_KEY
+    capabilities: [text, reasoning, cost-efficient]
+    notes: "Azure-hosted DeepSeek-family deployment example for budget reasoning."
+  - handle: builder-openrouter-gemini-flash
+    family: google
+    provider: openrouter
+    model_id: google/gemini-2.5-flash
+    endpoint: env:OPENROUTER_ENDPOINT
+    api_key: env:OPENROUTER_API_KEY
+    capabilities: [text, long-context, cost-efficient, builder]
+    notes: "Cost-efficient Builder A option; useful for high-volume corpus drafting."
+  - handle: builder-openrouter-gpt-oss-120b
+    family: openai
+    provider: openrouter
+    model_id: openai/gpt-oss-120b
+    endpoint: env:OPENROUTER_ENDPOINT
+    api_key: env:OPENROUTER_API_KEY
+    capabilities: [text, long-context, cost-efficient, builder]
+    notes: "Cost-efficient Builder B option from a different family than Gemini Flash."
+  - handle: factcheck-openrouter-deepseek
+    family: deepseek
+    provider: openrouter
+    model_id: deepseek/deepseek-chat-v3.1
+    endpoint: env:OPENROUTER_ENDPOINT
+    api_key: env:OPENROUTER_API_KEY
+    capabilities: [text, reasoning, fact-check, cost-efficient]
+    notes: "Budget fact-checker / rubber-duck option via OpenRouter."
+  - handle: writer-openrouter-mistral-large
+    family: mistral
+    provider: openrouter
+    model_id: mistralai/mistral-large
+    endpoint: env:OPENROUTER_ENDPOINT
+    api_key: env:OPENROUTER_API_KEY
+    capabilities: [text, writing, synthesis, cost-efficient]
+    notes: "Mistral-family memo writer or synthesis option via OpenRouter."
+  - handle: critic-local-llama
+    family: meta-llama
+    provider: ollama
+    model_id: llama3.3:70b
+    endpoint: env:OLLAMA_ENDPOINT
+    api_key: env:OLLAMA_API_KEY
+    capabilities: [text, local, critic, privacy-preserving]
+    notes: "Local critic / rubber-duck option; set OLLAMA_API_KEY to a placeholder if unauthenticated."
+  - handle: critic-local-mistral
+    family: mistral
+    provider: ollama
+    model_id: mistral-small:latest
+    endpoint: env:OLLAMA_ENDPOINT
+    api_key: env:OLLAMA_API_KEY
+    capabilities: [text, local, critic, low-cost]
+    notes: "Local Mistral-family critic for cross-family challenge passes."
+  - handle: coder-local-deepseek
+    family: deepseek
+    provider: ollama
+    model_id: deepseek-coder-v2:latest
+    endpoint: env:OLLAMA_ENDPOINT
+    api_key: env:OLLAMA_API_KEY
+    capabilities: [text, local, coding, critic]
+    notes: "Local coding-oriented critic/builder option when pulled into Ollama."

@@ -1,0 +1,17 @@
+# adapters/citation-engine/requirements.txt — v3.1.14
+#
+# Install with: pip install -r adapters/citation-engine/requirements.txt
+#
+# LLM mode requires these packages. Fallback mode requires only Python stdlib.
+# Pinned to known-good versions as of v3.1.14 (2026-06-08); update as upstream
+# releases land + are tested.
+
+llama-index-core>=0.11,<0.13
+llama-index-llms-openai>=0.2,<0.4
+llama-index-embeddings-openai>=0.2,<0.4
+llama-index-vector-stores-chroma>=0.2,<0.4
+chromadb>=0.5,<0.7
+
+# Optional alternative LLM clients (uncomment as needed for cross-family options)
+# llama-index-llms-anthropic>=0.4,<0.7
+# llama-index-llms-mistralai>=0.2,<0.4

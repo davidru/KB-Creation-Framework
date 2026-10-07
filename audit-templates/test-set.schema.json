@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-creation-framework.local/schemas/v3.1.15/test-set.schema.json",
+  "title": "KB Creation Framework — Test Set",
+  "description": "Schema for audit/test-set.yaml (v3.1.15+). Operator-curated ground-truth questions the KB MUST answer correctly. Inspect-runner scores at Phase 7.0; result feeds the 'Test-set passage rate' Quality Scorecard dimension. A KB cannot reach PASS verdict unless passage rate meets threshold (default 80%, configurable).",
+  "type": "object",
+  "required": ["version", "questions"],
+  "additionalProperties": true,
+  "properties": {
+    "version": { "type": "string", "default": "1.0" },
+    "kb_root": { "type": "string", "description": "Optional; auto-filled by runner if absent." },
+    "threshold": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "passage_rate": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.80, "description": "Minimum fraction of questions that must PASS to clear the dimension threshold." },
+        "per_question_severity": { "type": "string", "enum": ["blocker","high","medium","low"], "default": "medium", "description": "If 'blocker', any single FAIL blocks composite PASS. Otherwise treated as score input only." }
+      }
+    },
+    "solver": {
+      "type": "object",
+      "description": "Optional. Only used in LLM mode. Defines how the LLM produces answers from the KB before scoring.",
+      "additionalProperties": true,
+      "properties": {
+        "type": { "type": "string", "enum": ["rag","direct","reasoning"], "default": "rag" },
+        "llm": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "provider": { "type": "string", "enum": ["openrouter","openai","anthropic"] },
+            "model": { "type": "string" },
+            "family": { "type": "string", "description": "Per Rule 19, MUST differ from Builder A + Builder B + Phase 6.4 fact-checker families." }
+          }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "scorer"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1, "description": "The question text." },
+          "scorer": {
+            "type": "string",
+            "enum": ["exact_match","contains","contains_all","contains_any","cite_match","numeric_tolerance","model_graded"]
+          },
+          "expected_answer": { "type": "string", "description": "For exact_match / contains scorers." },
+          "keywords": { "type": "array", "items": { "type": "string" }, "description": "For contains_all / contains_any." },
+          "expected_cite": { "type": "string", "description": "For cite_match (normalized comparison)." },
+          "expected_value": { "type": "number", "description": "For numeric_tolerance." },
+          "tolerance": { "type": "number", "default": 0, "description": "For numeric_tolerance — absolute tolerance." },
+          "rubric": { "type": "string", "description": "For model_graded — what counts as a correct answer (used to prompt the grader LLM)." },
+          "severity": { "type": "string", "enum": ["blocker","high","medium","low"], "default": "medium" },
+          "topic_hint": { "type": "string", "description": "Optional topic id to narrow search (otherwise scans all of full/)." }
+        }
+      }
+    }
+  }
+}

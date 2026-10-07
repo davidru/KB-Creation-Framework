@@ -1,0 +1,63 @@
+# Model preset definitions for KB Creation Framework v3 Phase 0.0
+# Loaded by prompts/00a-model-selection.md; validated by Validate-ModelAssignment.ps1
+# Update when model availability changes; bump the framework MINOR version.
+#
+# _about:
+#   Presets now reference Model Registry handles, not raw provider model IDs.
+#   Every role value below must match a `models[].handle` in `model-registry.example.yaml`
+#   or the operator's local `model-registry.yaml`.
+#   `Resolve-Model.ps1` resolves each handle to provider/model_id/family at runtime.
+#   Family classification lives on the registry entry; this file no longer carries a families map.
+
+presets:
+  copilot-openrouter-ollama-standard-multi-family:
+    description: "Default host-aware multi-family configuration. Uses registry handles across Copilot CLI, OpenRouter, and local/Ollama options; no Rule 19 opt-out expected when all handles resolve."
+    lead: lead-premium-copilot-opus
+    builder_a: builder-openrouter-gemini-flash
+    builder_b: builder-openrouter-gpt-oss-120b
+    critic_pool: [critic-local-llama, critic-local-mistral]
+    factcheck_pool_5a_5b_5c: [factcheck-copilot-gpt55]
+    factcheck_pool_5d_5e: [auditor-copilot-gemini-pro]
+    factcheck_6b: [factcheck-openrouter-deepseek]
+    auditor_7: [writer-openrouter-mistral-large]
+    memo_factcheck_8: [critic-local-llama]
+    rule_19_opt_out: not-required
+
+  openrouter-ollama-budget-multi-family:
+    description: "Lower-cost host-aware multi-family configuration. Favors OpenRouter and local/Ollama handles while preserving registry-declared family separation."
+    lead: writer-openrouter-mistral-large
+    builder_a: builder-openrouter-gemini-flash
+    builder_b: builder-openrouter-gpt-oss-120b
+    critic_pool: [critic-local-llama]
+    factcheck_pool_5a_5b_5c: [factcheck-openrouter-deepseek]
+    factcheck_pool_5d_5e: [builder-openrouter-gemini-flash]
+    factcheck_6b: [critic-local-mistral]
+    auditor_7: [critic-local-llama]
+    memo_factcheck_8: [builder-openrouter-gpt-oss-120b]
+    rule_19_opt_out: not-required
+
+  copilot-single-family-anthropic:
+    description: "Explicit Rule 19 opt-out — all roles use the Anthropic-family Copilot CLI handle. Operator rationale required."
+    lead: lead-premium-copilot-opus
+    builder_a: lead-premium-copilot-opus
+    builder_b: lead-premium-copilot-opus
+    critic_pool: [lead-premium-copilot-opus]
+    factcheck_pool_5a_5b_5c: [lead-premium-copilot-opus]
+    factcheck_pool_5d_5e: [lead-premium-copilot-opus]
+    factcheck_6b: [lead-premium-copilot-opus]
+    auditor_7: [lead-premium-copilot-opus]
+    memo_factcheck_8: [lead-premium-copilot-opus]
+    rule_19_opt_out: required
+
+  copilot-single-family-openai:
+    description: "Explicit Rule 19 opt-out — all roles use the OpenAI-family Copilot CLI handle. Operator rationale required."
+    lead: factcheck-copilot-gpt55
+    builder_a: factcheck-copilot-gpt55
+    builder_b: factcheck-copilot-gpt55
+    critic_pool: [factcheck-copilot-gpt55]
+    factcheck_pool_5a_5b_5c: [factcheck-copilot-gpt55]
+    factcheck_pool_5d_5e: [factcheck-copilot-gpt55]
+    factcheck_6b: [factcheck-copilot-gpt55]
+    auditor_7: [factcheck-copilot-gpt55]
+    memo_factcheck_8: [factcheck-copilot-gpt55]
+    rule_19_opt_out: required

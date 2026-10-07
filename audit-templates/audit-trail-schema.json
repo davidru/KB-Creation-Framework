@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KB Quality Scorecard Machine-Readable Companion",
+  "description": "Schema for audit/kb-quality.json, produced by Generate-QualityScorecard.ps1 alongside the human-readable kb-quality-scorecard.md. This companion file is the machine-readable form of the scorecard, consumed by downstream tools (Cross-KB Conflict Detector, Diff-KBVersions, portfolio rollup) and by any consumer that wants programmatic access to quality signal.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "kb_id",
+    "kb_version",
+    "framework_version",
+    "generated_at",
+    "verdict",
+    "composite_kb_quality_index",
+    "dimensions",
+    "model_assignment",
+    "kb_type"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version for this scorecard JSON file. v3.0 frameworks emit '1.0'.",
+      "const": "1.0"
+    },
+    "kb_id": {
+      "type": "string",
+      "description": "Stable KB identifier from kb-manifest.yaml; e.g., 'eu-cra'."
+    },
+    "kb_version": {
+      "type": "string",
+      "description": "KB version from kb-manifest.yaml; e.g., '2.0' or '3.0.0'."
+    },
+    "framework_version": {
+      "type": "string",
+      "description": "KB Creation Framework version that produced the build; e.g., '3.0.0'."
+    },
+    "kb_type": {
+      "type": "string",
+      "enum": ["legal_topic", "company", "litigation", "person", "technology", "other"],
+      "description": "From scoping_report.md. Determines which weights apply."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp when this scorecard was generated."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "PASS-WITH-CAVEATS", "CONDITIONAL", "FAIL", "BUILD-INCOMPLETE"],
+      "description": "Overall verdict per the rules in kb-quality-dimensions.yaml. BUILD-INCOMPLETE indicates the build was not finished; partial scorecard emitted for diagnostic purposes."
+    },
+    "verdict_summary": {
+      "type": "string",
+      "description": "One-paragraph operator summary of who this KB is reliable for, what it's not yet reliable for, and what would change the verdict."
+    },
+    "composite_kb_quality_index": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Weighted sum of dimension scores per kb-quality-dimensions.yaml."
+    },
+    "dimensions": {
+      "type": "object",
+      "required": [
+        "citation_density_and_primary_source_rate",
+        "register_tag_coverage_and_extraction_integrity",
+        "cross_reference_fidelity",
+        "qualifier_preservation",
+        "volatile_tag_coverage",
+        "stress_test_pass_rate",
+        "structural_and_size_compliance"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "citation_density_and_primary_source_rate": {"$ref": "#/definitions/dimension_score"},
+        "register_tag_coverage_and_extraction_integrity": {"$ref": "#/definitions/dimension_score"},
+        "cross_reference_fidelity": {"$ref": "#/definitions/dimension_score"},
+        "qualifier_preservation": {"$ref": "#/definitions/dimension_score"},
+        "volatile_tag_coverage": {"$ref": "#/definitions/dimension_score"},
+        "stress_test_pass_rate": {"$ref": "#/definitions/dimension_score"},
+        "structural_and_size_compliance": {"$ref": "#/definitions/dimension_score"}
+      }
+    },
+    "model_assignment": {
+      "type": "object",
+      "description": "Per Phase 0.0 selection. Mirrors the structure in audit-templates/model-presets.yaml.",
+      "required": ["preset", "lead", "builder_a", "builder_b"],
+      "properties": {
+        "preset": {"type": "string", "enum": ["standard-multi-family", "budget-multi-family", "single-family-anthropic", "single-family-openai", "custom"]},
+        "lead": {"type": "string"},
+        "builder_a": {"type": "string"},
+        "builder_b": {"type": "string"},
+        "critic_pool": {"type": "array", "items": {"type": "string"}},
+        "factcheck_pool_5a_5b_5c": {"type": "array", "items": {"type": "string"}},
+        "factcheck_pool_5d_5e": {"type": "array", "items": {"type": "string"}},
+        "factcheck_6b": {"type": "array", "items": {"type": "string"}},
+        "auditor_7": {"type": "array", "items": {"type": "string"}},
+        "memo_factcheck_8": {"type": "array", "items": {"type": "string"}},
+        "rule_19_exceptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["conflicting_phases", "shared_family", "operator_rationale"],
+            "properties": {
+              "conflicting_phases": {"type": "array", "items": {"type": "string"}},
+              "shared_family": {"type": "string"},
+              "operator_rationale": {"type": "string"},
+              "acknowledged_at": {"type": "string", "format": "date-time"}
+            }
+          }
+        }
+      }
+    },
+    "open_items": {
+      "type": "array",
+      "description": "Unresolved findings the operator chose to ship with (e.g., [NEEDS-VERIFICATION] still in full/, deferred-to-next-refresh items).",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "summary", "source_artifact", "recommended_action"],
+        "properties": {
+          "id": {"type": "string"},
+          "severity": {"type": "string", "enum": ["minor", "material", "critical"]},
+          "summary": {"type": "string"},
+          "source_artifact": {"type": "string"},
+          "recommended_action": {"type": "string"}
+        }
+      }
+    },
+    "build_phase_summary": {
+      "type": "array",
+      "description": "Per-phase exit status from pipeline_state.md.",
+      "items": {
+        "type": "object",
+        "required": ["phase", "exit_status", "model", "completed_at"],
+        "properties": {
+          "phase": {"type": "string"},
+          "exit_status": {"type": "string", "enum": ["PASS", "PASS-WITH-FINDINGS", "BLOCKED", "FAILED", "SKIPPED-WITH-APPROVAL"]},
+          "model": {"type": "string"},
+          "completed_at": {"type": "string", "format": "date-time"},
+          "skip_rationale": {"type": "string"}
+        }
+      }
+    },
+    "framework_version_metadata": {
+      "type": "object",
+      "description": "Provenance for reviewer trust",
+      "properties": {
+        "kb_framework_version": {"type": "string"},
+        "memo_framework_version": {"type": "string"},
+        "weights_yaml_version": {"type": "string"}
+      }
+    }
+  },
+  "definitions": {
+    "dimension_score": {
+      "type": "object",
+      "required": ["score", "threshold", "verdict", "underlying_data", "provenance"],
+      "properties": {
+        "score": {"type": "number", "minimum": 0, "maximum": 100},
+        "threshold": {"type": "number", "minimum": 0, "maximum": 100},
+        "verdict": {"type": "string", "enum": ["PASS", "CONDITIONAL", "FAIL"]},
+        "underlying_data": {
+          "type": "object",
+          "description": "Dimension-specific raw measurements; keys vary by dimension"
+        },
+        "provenance": {
+          "type": "array",
+          "description": "List of source artifacts the score traces back to.",
+          "items": {"type": "string"}
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["verification-independence-degraded", "sample-based", "build-incomplete"]}
+        }
+      }
+    }
+  }
+}

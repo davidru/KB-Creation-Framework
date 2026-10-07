@@ -1,0 +1,63 @@
+# Example source-registry.yaml — KB Creation Framework v3.1.13+
+#
+# Operator curates this file before Phase 0.0 to declare primary sources the KB depends on.
+# Lives at sources/source-registry.yaml relative to the KB root.
+# Schema validated by audit-templates/source-registry.schema.json (use Test-Json).
+#
+# Used by:
+#   - Phase 1.1 (Builder Research): pre-fetches all declared sources into external/primary-sources/cache/
+#     before dispatching Builder A + Builder B. Builders consume these as authoritative inputs.
+#   - Phase 6.3 (Extraction): re-fetches all declared sources, diff-detects against cache, writes
+#     sources/source_drift_report.md listing any sources whose content changed since Phase 1.1 fetch.
+#     A drift report with foundational-criticality changes BLOCKS the build (operator review required).
+#
+# This example uses a hypothetical WA-securities KB watching SEC + FINRA primary sources.
+
+framework_version: v3.1.13
+
+default_cache_path: external/primary-sources/cache
+auto_fetch_on_phase_1_1: true
+drift_report_on_phase_6_3: true
+
+sources:
+  # eCFR — Securities Exchange Act Rule 10b-5 (anti-fraud)
+  - id: cfr-17-240-10b-5
+    adapter: ecfr
+    ref:
+      cite_string: "17 CFR 240.10b-5"
+    tags: [securities, anti-fraud, foundational]
+    criticality: foundational
+
+  # eCFR — Regulation S-P (privacy)
+  - id: cfr-17-part-248
+    adapter: ecfr
+    ref:
+      cite_string: "17 CFR Part 248"
+    tags: [securities, privacy]
+    criticality: supporting
+
+  # Public Law — Dodd-Frank
+  - id: pl-111-203-dodd-frank
+    adapter: congress
+    ref:
+      public_law: "111-203"
+    tags: [securities, foundational]
+    criticality: foundational
+
+  # Federal Register — example notice
+  - id: fr-2020-12345
+    adapter: federal-register
+    ref:
+      document_number: "2020-12345"
+    tags: [securities, rulemaking]
+    criticality: context
+
+  # GovInfo — USCODE title 15 chapter 2B
+  - id: govinfo-uscode-2024-title15
+    adapter: govinfo
+    ref:
+      collection: USCODE
+      year: 2024
+      title: "15"
+    tags: [securities, statute]
+    criticality: foundational

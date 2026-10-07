@@ -1,0 +1,80 @@
+# Example test-set.yaml — KB Creation Framework v3.1.15+
+#
+# Operator curates this file per KB. Lives at audit/test-set.yaml in the KB root.
+# Schema-validated against audit-templates/test-set.schema.json.
+# Run by adapters/evaluator/inspect-runner at Phase 7.0; feeds the Quality
+# Scorecard's "Test-set passage rate" dimension. A KB cannot PASS unless
+# passage_rate >= threshold.passage_rate.
+#
+# Curate 10-20 questions per KB:
+#   - Cover the highest-stakes operator-facing decisions the KB supports
+#   - Mix scorer types (don't make every question contains_all)
+#   - Include at least one negative test (a question the KB should NOT answer
+#     because it's out of scope)
+#   - Mark severity: 'blocker' for any single answer that, if wrong, would
+#     embarrass the deliverable
+
+version: "1.0"
+
+threshold:
+  passage_rate: 0.80           # 80% of questions must PASS
+  per_question_severity: medium # set 'blocker' if any single FAIL blocks composite PASS
+
+# Optional — only consulted in LLM mode. Family MUST differ from KB build families per Rule 19.
+solver:
+  type: rag
+  llm:
+    provider: openrouter
+    model: anthropic/claude-opus-4.8
+    family: anthropic
+
+questions:
+  # cite_match — verifies the KB cites the right authority for a given proposition
+  - id: q1-rule10b5-cite
+    text: "What CFR section governs general anti-fraud liability for securities transactions?"
+    scorer: cite_match
+    expected_cite: "17 CFR 240.10b-5"
+    severity: blocker
+
+  # contains_all — multiple keywords must all be present somewhere in KB
+  - id: q2-rule10b5-elements
+    text: "What conduct does Rule 10b-5 prohibit?"
+    scorer: contains_all
+    keywords: ["device", "scheme", "artifice", "defraud", "material fact"]
+    severity: high
+
+  # contains — single expected substring
+  - id: q3-doddfrank-name
+    text: "What is the formal name of the law commonly called Dodd-Frank?"
+    scorer: contains
+    expected_answer: "Dodd-Frank Wall Street Reform and Consumer Protection Act"
+    severity: medium
+
+  # numeric_tolerance — operative claim with day-counts / dollar amounts
+  - id: q4-mdr-vigilance-days
+    text: "How many days does an MDR manufacturer have to report a serious incident?"
+    scorer: numeric_tolerance
+    expected_value: 15
+    tolerance: 0
+    severity: blocker
+
+  # contains_any — one of several acceptable answers
+  - id: q5-jurisdiction-name
+    text: "What U.S. state's securities law is described in this KB?"
+    scorer: contains_any
+    keywords: ["Washington", "Washington State", "WA"]
+    severity: medium
+
+  # model_graded — for fuzzy questions; requires LLM mode (skipped in fallback)
+  - id: q6-best-practice
+    text: "What is the recommended approach for handling a Rule 10b-5 internal investigation?"
+    scorer: model_graded
+    rubric: "PASS if the answer describes preserving documents, engaging outside counsel, and considering self-reporting. FAIL if it omits any of these or recommends destroying records."
+    severity: high
+
+  # exact_match — only when answer must be character-perfect (rare)
+  - id: q7-secfile-deadline
+    text: "What is the Form 10-K annual filing deadline for large accelerated filers (in days after fiscal year-end)?"
+    scorer: exact_match
+    expected_answer: "60 days"
+    severity: high

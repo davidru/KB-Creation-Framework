@@ -1,0 +1,160 @@
+# Example pipeline_state.yaml (v3.1.11 — KB Creation Framework v3.1.11+)
+#
+# This file is the structured replacement for the legacy pipeline_state.md.
+# Generate-QualityScorecard.ps1 prefers .yaml over .md when both are present.
+# Validate-PipelineState.ps1 lints this file against:
+#   1. audit-templates/pipeline-state.schema.json (JSON Schema 2020-12)
+#   2. Rule 20 integrity cross-checks (intended_handle drift, family lookup)
+#   3. Rule 19 pair coverage (required verification phases present)
+#
+# The orchestrator appends to phase_log[] after every dispatch.
+# Atomicity: write a fresh entry rather than mutating; the file is append-mostly.
+
+framework_version: v3.1.11
+
+kb:
+  name: WA Law Firm KB
+  root: <portfolio-root>\WA-Law-Firm-KB
+  type: legal_topic
+  audience: Practicing attorneys / law firm operators
+  jurisdiction: Washington State only
+  host: opencode
+  host_capability_level: L3
+  created: 2026-06-07
+
+model_assignment:
+  preset: custom-handles
+  lead: lead-xai-grok43
+  builder_a: builder-deepseek-v4-flash
+  builder_b: builder-qwen3-235b
+  critic_pool: [critic-google-gemini35-flash]
+  factcheck_pool_5a_5b_5c: [factcheck-openai-gpt51-codex-mini]
+  factcheck_pool_5d_5e: [factcheck-google-gemini31-pro]
+  factcheck_6b: [factcheck-anthropic-sonnet46]
+  auditor_7: [auditor-minimax-m3]
+  memo_factcheck_8: [memofactcheck-mistral-large2512]
+  rule_19_opt_out: not-required
+  validation_report: sources/model_assignment_validation.md
+
+phase_log:
+  - phase_id: '0.0'
+    phase_label: Model Selection
+    role: Lead
+    intended_handle: lead-xai-grok43
+    actual_model_id: x-ai/grok-4.3
+    actual_provider: openrouter
+    actual_family: x-ai
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-07T21:55:00Z
+    notes: Operator selected via sub-flow D + custom pick per role.
+
+  - phase_id: '0.2'
+    phase_label: Scoping critique
+    role: Critic
+    intended_handle: critic-google-gemini35-flash
+    actual_model_id: google/gemini-3.5-flash
+    actual_provider: openrouter
+    actual_family: google
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-07T22:05:00Z
+
+  - phase_id: '1.1'
+    phase_label: Builder research
+    role: Builder A
+    intended_handle: builder-deepseek-v4-flash
+    actual_model_id: deepseek/deepseek-v4-flash
+    actual_provider: openrouter
+    actual_family: deepseek
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-07T22:10:00Z
+
+  - phase_id: '1.1'
+    phase_label: Builder research
+    role: Builder B
+    intended_handle: builder-qwen3-235b
+    actual_model_id: qwen/qwen3-235b-a22b
+    actual_provider: openrouter
+    actual_family: qwen
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-07T22:10:00Z
+
+  # Per-topic build entries (one per builder per topic). For a 15-topic KB,
+  # expect 30 entries under phase_id 5.2 (or use phase_id '5.2-topic-N' for
+  # per-topic granularity).
+  - phase_id: '5.2'
+    phase_label: Per-topic content build
+    topic_id: topic-1-formation-requirements
+    role: Builder A
+    intended_handle: builder-deepseek-v4-flash
+    actual_model_id: deepseek/deepseek-v4-flash
+    actual_provider: openrouter
+    actual_family: deepseek
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-08T00:14:00Z
+
+  - phase_id: '5.2'
+    phase_label: Per-topic content build
+    topic_id: topic-1-formation-requirements
+    role: Builder B
+    intended_handle: builder-qwen3-235b
+    actual_model_id: qwen/qwen3-235b-a22b
+    actual_provider: openrouter
+    actual_family: qwen
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-08T00:14:00Z
+
+  - phase_id: '5.4'
+    phase_label: Fact-check (single-source + operative claims)
+    role: Fact-checker
+    intended_handle: factcheck-google-gemini31-pro
+    actual_model_id: google/gemini-3.1-pro-preview
+    actual_provider: openrouter
+    actual_family: google
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-08T03:42:00Z
+
+  - phase_id: '6.4'
+    phase_label: Post-assembly superset fact-check
+    role: Fact-checker
+    intended_handle: factcheck-anthropic-sonnet46
+    actual_model_id: anthropic/claude-sonnet-4.6
+    actual_provider: openrouter
+    actual_family: anthropic
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-08T04:18:00Z
+
+  - phase_id: '7.0'
+    phase_label: Final audit
+    role: Auditor
+    intended_handle: auditor-minimax-m3
+    actual_model_id: minimax/minimax-m3
+    actual_provider: openrouter
+    actual_family: minimax
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-08T05:01:00Z
+
+  - phase_id: '8.0'
+    phase_label: Stress-test memo fact-check
+    role: Stress-test memo fact-checker
+    intended_handle: memofactcheck-mistral-large2512
+    actual_model_id: mistralai/mistral-large-2512
+    actual_provider: openrouter
+    actual_family: mistral
+    dispatch_status: dispatched-as-intended
+    dispatch_fingerprint_match: true
+    timestamp: 2026-06-08T05:47:00Z
+
+# Optional. Each entry marks a mid-build re-assignment that atomically rewrote
+# model_assignment above (the file should reflect the LATEST assignment after
+# overrides — old handles are recorded here for audit). Subsequent phase_log
+# entries log dispatch_status: dispatched-after-override.
+mid_build_overrides: []

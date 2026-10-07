@@ -1,0 +1,99 @@
+# Domain capability signals for KB Creation Framework v3.1 recommendations.
+# These benchmark-derived overrides complement provider-native category labels.
+# Operators should refresh per major model release or benchmark update.
+_about:
+  last_updated: 2026-06-07
+  caveats:
+    - "Benchmark data commonly lags current model releases by 3-6 months."
+    - "Benchmark performance is not the same as real-world KB-build fit."
+    - "Operator should refresh this file when selecting models for high-stakes builds."
+domains:
+  legal:
+    sources:
+      - name: LegalBench
+        url: https://hazyresearch.stanford.edu/legalbench/
+        accessed: 2026-06-07
+      - name: LawBench
+        url: https://github.com/open-compass/LawBench
+        accessed: 2026-06-07
+      - name: CaseHOLD
+        url: https://reglab.stanford.edu/data/
+        accessed: 2026-06-07
+      - name: MAUD
+        url: https://nlp.stanford.edu/projects/maud/
+        accessed: 2026-06-07
+    tier_overrides:
+      premium_legal:
+        - claude-opus-*
+        - anthropic/claude-opus-*
+        - gpt-5*
+        - openai/gpt-5*
+        - o1*
+        - openai/o1*
+        - gemini-3.1-pro*
+        - google/gemini-3.1-pro*
+      advanced_legal:
+        - claude-sonnet-4.5*
+        - claude-sonnet-4.6*
+        - anthropic/claude-sonnet-4.*
+        - gpt-4o
+        - openai/gpt-4o
+        - gemini-2.5-pro*
+        - google/gemini-2.5-pro*
+      caution_legal:
+        - "*-mini*"
+        - "*-flash-8b*"
+        - llama-3.1-70b*
+        - mistral-small*
+  coding:
+    sources:
+      - name: SWE-Bench
+        url: https://www.swebench.com/
+        accessed: 2026-06-07
+      - name: HumanEval
+        url: https://github.com/openai/human-eval
+        accessed: 2026-06-07
+    tier_overrides:
+      premium_coding:
+        - gpt-5.3-codex*
+        - openai/gpt-5.3-codex*
+        - gpt-5*
+        - openai/gpt-5*
+        - claude-opus-*
+        - anthropic/claude-opus-*
+        - claude-sonnet-4.6*
+        - anthropic/claude-sonnet-4.6*
+      advanced_coding:
+        - gpt-4o
+        - openai/gpt-4o
+        - gemini-2.5-pro*
+        - google/gemini-2.5-pro*
+        - deepseek-coder-v2*
+        - deepseek/deepseek-coder*
+      caution_coding:
+        - mistral-small*
+        - llama3.1:70b*
+        - "*-roleplay*"
+  general:
+    sources:
+      - name: LMSYS Chatbot Arena
+        url: https://chat.lmsys.org/?leaderboard
+        accessed: 2026-06-07
+    tier_overrides:
+      premium_general:
+        - claude-opus-*
+        - anthropic/claude-opus-*
+        - gpt-5*
+        - openai/gpt-5*
+        - gemini-3.1-pro*
+        - google/gemini-3.1-pro*
+      advanced_general:
+        - claude-sonnet-4.*
+        - anthropic/claude-sonnet-4.*
+        - gpt-4o
+        - openai/gpt-4o
+        - gemini-2.5-flash*
+        - google/gemini-2.5-flash*
+      caution_general:
+        - "*-mini*"
+        - "*-8b*"

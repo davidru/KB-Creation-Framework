@@ -1,0 +1,72 @@
+# Title: Test-Setup.ps1 — KB Framework pre-flight doctor.
+# Purpose: Validate registry, adapters, env vars, host basics, and optional live dispatch.
+# Inputs: Optional registry/adapters/host paths, -LiveTest, and structured -OutPath.
+# Outputs: Structured Markdown report or JSON/YAML report at -OutPath.
+# Exit codes: 0 no FAIL checks; 1 one or more FAIL checks.
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory=$false)][string]$RegistryPath = (Join-Path $PSScriptRoot 'model-registry.yaml'),
+    [Parameter(Mandatory=$false)][string]$AdaptersRoot = (Join-Path $PSScriptRoot 'adapters\model-providers'),
+    [Parameter(Mandatory=$false)][string]$HostName = '',
+    [Parameter(Mandatory=$false)][switch]$LiveTest,
+    [Parameter(Mandatory=$false)][string]$OutPath = ''
+)
+
+$ErrorActionPreference = 'Stop'
+$checks = New-Object System.Collections.Generic.List[object]
+
+function Add-Check { param([string]$Name,[string]$Status,[string]$Detail,[string]$Category='setup',[object]$Data=$null) $checks.Add([pscustomobject][ordered]@{ category=$Category; name=$Name; status=$Status; detail=$Detail; data=$Data }) | Out-Null }
+function Test-Scalar { param($Value) return (($null -eq $Value) -or ($Value -is [string]) -or ($Value -is [int]) -or ($Value -is [long]) -or ($Value -is [double]) -or ($Value -is [bool])) }
+function Format-YamlScalar { param($Value) if ($null -eq $Value) { return 'null' }; if ($Value -is [bool]) { return $Value.ToString().ToLowerInvariant() }; if ($Value -is [int] -or $Value -is [long] -or $Value -is [double]) { return [string]$Value }; $text=[string]$Value; if ($text -eq '') { return '""' }; if ($text -match '[:#\[\]{},&*?]|^\s|\s$|\|') { return '"' + ($text -replace '"','\"') + '"' }; return $text }
+function ConvertTo-SimpleYaml { param($Value,[int]$Indent=0) $spaces=' '*$Indent; $lines=New-Object System.Collections.Generic.List[string]; if (Test-Scalar $Value) { $lines.Add($spaces+(Format-YamlScalar $Value))|Out-Null } elseif ($Value -is [System.Collections.IDictionary]) { foreach($key in $Value.Keys){$item=$Value[$key]; if(Test-Scalar $item){$lines.Add(('{0}{1}: {2}' -f $spaces,$key,(Format-YamlScalar $item)))|Out-Null}else{$lines.Add(('{0}{1}:' -f $spaces,$key))|Out-Null; foreach($line in ConvertTo-SimpleYaml $item ($Indent+2)){$lines.Add($line)|Out-Null}}}} elseif ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) { foreach($item in $Value){ if(Test-Scalar $item){$lines.Add(('{0}- {1}' -f $spaces,(Format-YamlScalar $item)))|Out-Null}else{$lines.Add(('{0}-' -f $spaces))|Out-Null; foreach($line in ConvertTo-SimpleYaml $item ($Indent+2)){$lines.Add($line)|Out-Null}}}} else { $map=[ordered]@{}; foreach($prop in $Value.PSObject.Properties){$map[$prop.Name]=$prop.Value}; foreach($line in ConvertTo-SimpleYaml $map $Indent){$lines.Add($line)|Out-Null}}; return @($lines) }
+function Write-StructuredOutput { param($Data,[string]$Path) $parent=Split-Path -Parent $Path; if($parent -and -not(Test-Path -LiteralPath $parent)){New-Item -ItemType Directory -Path $parent -Force|Out-Null}; if($Path -match '\.ya?ml$'){(ConvertTo-SimpleYaml $Data) -join [Environment]::NewLine | Set-Content -LiteralPath $Path -Encoding UTF8}else{$Data|ConvertTo-Json -Depth 15|Set-Content -LiteralPath $Path -Encoding UTF8} }
+function Resolve-RegistryPath { param([string]$Path) if(Test-Path -LiteralPath $Path){return (Resolve-Path -LiteralPath $Path).Path}; $example=Join-Path $PSScriptRoot 'model-registry.example.yaml'; if((Split-Path -Leaf $Path) -eq 'model-registry.yaml' -and (Test-Path -LiteralPath $example)){return (Resolve-Path -LiteralPath $example).Path}; throw "RegistryPath not found: $Path" }
+function ConvertFrom-RegistryYamlValue { param([string]$Value) $text=$Value.Trim(); if($text -match '^\[(.*)\]$'){ $inner=$matches[1].Trim(); if(-not $inner){return @()}; return @($inner -split ',' | ForEach-Object { ConvertFrom-RegistryYamlValue $_ })}; if(($text.StartsWith('"') -and $text.EndsWith('"')) -or ($text.StartsWith("'") -and $text.EndsWith("'"))){return $text.Substring(1,$text.Length-2)}; return $text }
+function Add-RegistryProperty { param([System.Collections.Specialized.OrderedDictionary]$Entry,[string]$Text) if($Text -match '^([A-Za-z_][A-Za-z0-9_\-]*)\s*:\s*(.*)$'){ $key=$matches[1]; $parsed=@(ConvertFrom-RegistryYamlValue $matches[2]); if($parsed.Count -eq 0){$Entry[$key]=@()} elseif($parsed.Count -eq 1){$Entry[$key]=$parsed[0]} else {$Entry[$key]=$parsed} } }
+function ConvertFrom-ModelRegistryYaml { param([string]$Path) $models=@(); $current=$null; $inModels=$false; foreach($raw in Get-Content -LiteralPath $Path -Encoding UTF8){ $line=$raw.TrimEnd(); $trimmed=$line.Trim(); if(-not $trimmed -or $trimmed.StartsWith('#')){continue}; if($trimmed -eq 'models:'){$inModels=$true; continue}; if(-not $inModels){continue}; if($line -match '^\s*-\s*(.*)$'){ if($null -ne $current){$models += [pscustomobject]$current}; $current=[ordered]@{}; if($matches[1].Trim()){Add-RegistryProperty $current $matches[1].Trim()} } elseif($null -ne $current -and $line -match '^\s+([A-Za-z_][A-Za-z0-9_\-]*\s*:.*)$'){ Add-RegistryProperty $current $matches[1] } }; if($null -ne $current){$models += [pscustomobject]$current}; return @($models) }
+function Get-Prop { param($Entry,[string]$Name) $p=$Entry.PSObject.Properties[$Name]; if($p){return $p.Value}; return $null }
+function Get-EnvName { param([string]$Value) if($Value -match '^env:([A-Za-z_][A-Za-z0-9_]*)$'){return $matches[1]}; return $null }
+function Invoke-Resolver { param([string]$Handle,[string]$Path) $resolver=Join-Path $PSScriptRoot 'Resolve-Model.ps1'; $output=& $resolver -Handle $Handle -RegistryPath $Path 2>&1; $code=$LASTEXITCODE; return [pscustomobject]@{ exit_code=$code; output=($output -join "`n") } }
+function Test-ProviderReachability { param([string]$Provider) switch($Provider){ 'openrouter' { try{ Invoke-RestMethod -Uri 'https://openrouter.ai/api/v1/models' -Method Get -TimeoutSec 20 | Out-Null; Add-Check "Provider reachability: $Provider" 'PASS' 'Public /models endpoint reachable.' 'provider' } catch { Add-Check "Provider reachability: $Provider" 'WARN' $_.Exception.Message 'provider' } } 'ollama' { $endpoint=$env:OLLAMA_ENDPOINT; if([string]::IsNullOrWhiteSpace($endpoint)){$endpoint='http://localhost:11434'}; try{ Invoke-RestMethod -Uri ($endpoint.TrimEnd('/') + '/api/tags') -Method Get -TimeoutSec 5 | Out-Null; Add-Check "Provider reachability: $Provider" 'PASS' "$endpoint reachable." 'provider' } catch { Add-Check "Provider reachability: $Provider" 'WARN' "Ollama not reachable at ${endpoint}: $($_.Exception.Message)" 'provider' } } 'azure-foundry' { if($env:AZURE_FOUNDRY_ENDPOINT -and $env:AZURE_FOUNDRY_API_KEY){ Add-Check "Provider reachability: $Provider" 'WARN' 'Azure credentials present; live Azure REST discovery is deferred to discover.ps1.' 'provider' } else { Add-Check "Provider reachability: $Provider" 'WARN' 'Azure env vars not fully configured.' 'provider' } } default { Add-Check "Provider reachability: $Provider" 'PASS' 'Local adapter presence checked; hosted ping not applicable.' 'provider' } } }
+function Get-HostName { param([string]$Explicit) if($Explicit){return $Explicit}; $pref=Join-Path $HOME '.kbframework\host_preference.yaml'; if(Test-Path -LiteralPath $pref){$txt=Get-Content -LiteralPath $pref -Raw -Encoding UTF8; if($txt -match 'host:\s*([A-Za-z0-9_\-]+)'){return $matches[1]}}; if($env:KB_FRAMEWORK_HOST){return $env:KB_FRAMEWORK_HOST}; return 'copilot-cli' }
+
+try {
+    $resolvedRegistry = Resolve-RegistryPath -Path $RegistryPath
+    if ($PSVersionTable.PSVersion.Major -ge 7) { Add-Check 'PowerShell version >= 7' 'PASS' "pwsh $($PSVersionTable.PSVersion)" 'runtime' } else { Add-Check 'PowerShell version >= 7' 'FAIL' "Current version $($PSVersionTable.PSVersion)" 'runtime' }
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($python) { Add-Check 'Python available' 'PASS' $python.Source 'runtime' } else { Add-Check 'Python available' 'WARN' 'python not found on PATH; only Python-backed adapters are affected.' 'runtime' }
+
+    $validator = Join-Path $PSScriptRoot 'Validate-ModelRegistry.ps1'
+    if (Test-Path -LiteralPath $validator) { $validationCacheDir = Join-Path $HOME '.kbframework\cache'; if(-not(Test-Path -LiteralPath $validationCacheDir)){New-Item -ItemType Directory -Path $validationCacheDir -Force|Out-Null}; $validationOut = Join-Path $validationCacheDir 'model-registry-validation.json'; $vout = & $validator -RegistryPath $resolvedRegistry -OutPath $validationOut *>&1; if($LASTEXITCODE -eq 0){Add-Check 'Model Registry schema valid' 'PASS' "Validation report: $validationOut" 'registry'} else {Add-Check 'Model Registry schema valid' 'FAIL' ($vout -join ' ') 'registry'} } else { Add-Check 'Model Registry schema valid' 'FAIL' 'Validate-ModelRegistry.ps1 missing.' 'registry' }
+    $models = @(ConvertFrom-ModelRegistryYaml -Path $resolvedRegistry)
+    Add-Check 'Registry readable' 'PASS' "Loaded $($models.Count) model entries from $resolvedRegistry" 'registry'
+
+    $expectedProviders = @('copilot-cli','azure-foundry','openrouter','ollama')
+    foreach($provider in $expectedProviders){ $dir=Join-Path $AdaptersRoot $provider; $disc=Join-Path $dir 'discover.ps1'; if(Test-Path -LiteralPath $dir -PathType Container){ if(Test-Path -LiteralPath $disc -PathType Leaf){Add-Check "Adapter directory: $provider" 'PASS' $dir 'adapter'} else {Add-Check "Adapter discover script: $provider" 'FAIL' "Missing $disc" 'adapter'} } else {Add-Check "Adapter directory: $provider" 'FAIL' "Missing $dir" 'adapter'} }
+
+    $declaredEnv = @{}
+    foreach($entry in $models){ foreach($field in @('endpoint','api_key')){ $envName=Get-EnvName ([string](Get-Prop $entry $field)); if($envName){$declaredEnv[$envName]=$true} } }
+    foreach($name in $declaredEnv.Keys){ if($null -ne [Environment]::GetEnvironmentVariable($name)){Add-Check "Env var declared: $name" 'PASS' 'Present.' 'environment'} else {Add-Check "Env var declared: $name" 'WARN' 'Missing; required only if using handles that reference it.' 'environment'} }
+
+    foreach($entry in $models){ $handle=[string](Get-Prop $entry 'handle'); if(-not $handle){continue}; $res=Invoke-Resolver -Handle $handle -Path $resolvedRegistry; if($res.exit_code -eq 0){Add-Check "Handle resolvable: $handle" 'PASS' 'Resolve-Model.ps1 returned provider/model/family.' 'registry'} else {Add-Check "Handle resolvable: $handle" 'FAIL' $res.output 'registry'} }
+
+    $uniqueProviders = @($models | ForEach-Object { [string](Get-Prop $_ 'provider') } | Where-Object { $_ } | Select-Object -Unique)
+    foreach($provider in $uniqueProviders){ Test-ProviderReachability -Provider $provider }
+
+    foreach($dir in Get-ChildItem -LiteralPath $AdaptersRoot -Directory -ErrorAction SilentlyContinue){ $venv = @((Join-Path $dir.FullName '.venv'),(Join-Path $dir.FullName 'venv')) | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | Select-Object -First 1; if($venv){ $py=Join-Path $venv 'Scripts\python.exe'; if(Test-Path -LiteralPath $py){ $pver=& $py --version 2>&1; Add-Check "Adapter venv: $($dir.Name)" 'PASS' ($pver -join ' ') 'adapter' } else { Add-Check "Adapter venv: $($dir.Name)" 'WARN' "Venv exists but python.exe missing: $venv" 'adapter' } } else { Add-Check "Adapter venv: $($dir.Name)" 'PASS' 'No adapter venv required/present.' 'adapter' } }
+
+    $activeHostName = Get-HostName -Explicit $HostName
+    $hostNotes = Join-Path $PSScriptRoot "hosts\$activeHostName\HOST-NOTES.md"
+    if(Test-Path -LiteralPath $hostNotes){ $txt=Get-Content -LiteralPath $hostNotes -Raw -Encoding UTF8; $level = if($txt -match '(?i)declared level[^A-Za-z0-9]*(L[123][ab]?)'){ $matches[1] } else { 'unknown' }; Add-Check 'Host notes present' 'PASS' "host=$activeHostName declared_level=$level" 'host' } else { Add-Check 'Host notes present' 'WARN' "No HOST-NOTES found for host '$activeHostName'." 'host' }
+    $probe = Join-Path $PSScriptRoot ('.kbframework-host-test-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    try { 'kbframework-host-contract-probe' | Set-Content -LiteralPath $probe -Encoding UTF8; $read = Get-Content -LiteralPath $probe -Raw -Encoding UTF8; if($read -match 'kbframework-host-contract-probe'){Add-Check 'Host file read/write with absolute path' 'PASS' $probe 'host'} else {Add-Check 'Host file read/write with absolute path' 'FAIL' 'Read-back content did not match.' 'host'} } finally { Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue }
+    try { $shellProbe = & pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()' 2>&1; if($LASTEXITCODE -eq 0){Add-Check 'Host shell execution' 'PASS' ($shellProbe -join ' ') 'host'} else {Add-Check 'Host shell execution' 'FAIL' ($shellProbe -join ' ') 'host'} } catch { Add-Check 'Host shell execution' 'FAIL' $_.Exception.Message 'host' }
+
+    if($LiveTest){ foreach($provider in $uniqueProviders){ $dispatch=Join-Path (Join-Path $AdaptersRoot $provider) 'dispatch.ps1'; if(Test-Path -LiteralPath $dispatch){ Add-Check "Live 1-token dispatch: $provider" 'WARN' 'dispatch.ps1 exists but provider-specific smoke payload is not standardized yet.' 'live' } else { Add-Check "Live 1-token dispatch: $provider" 'WARN' 'Skipped; dispatch.ps1 not present or not standardized.' 'live' } } } else { Add-Check 'Live dispatch tests' 'WARN' 'Skipped by default. Rerun with -LiveTest when provider keys are configured.' 'live' }
+
+    $failCount=@($checks | Where-Object status -eq 'FAIL').Count; $warnCount=@($checks | Where-Object status -eq 'WARN').Count
+    $result=[ordered]@{ generated_at=(Get-Date).ToString('o'); registry=$resolvedRegistry; host=$activeHostName; verdict=if($failCount -eq 0){'PASS'}else{'FAIL'}; fail_count=$failCount; warn_count=$warnCount; checks=$checks.ToArray() }
+    if($OutPath){ Write-StructuredOutput -Data $result -Path $OutPath; Write-Host "Test-Setup report written to $OutPath" }
+    else { Write-Host '# KB Framework Setup Report'; Write-Host "Generated: $($result.generated_at)"; Write-Host "Verdict: $($result.verdict) (FAIL=$failCount WARN=$warnCount)"; Write-Host ''; Write-Host '| Status | Category | Check | Detail |'; Write-Host '|---|---|---|---|'; foreach($c in $checks){ Write-Host "| $($c.status) | $($c.category) | $($c.name) | $(([string]$c.detail -replace '\|','\|' -replace "`r?`n",' ')) |" } }
+    if($failCount -gt 0){exit 1}; exit 0
+} catch { Write-Error $_.Exception.Message; exit 1 }

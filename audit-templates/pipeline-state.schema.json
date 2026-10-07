@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-creation-framework.local/schemas/v3.1.11/pipeline-state.schema.json",
+  "title": "KB Creation Framework — Pipeline State",
+  "description": "Schema for sources/pipeline_state.yaml (v3.1.11+). Records the intended Phase 0.0 model assignment and the per-phase actual dispatch results per Rule 20 (Model Provenance Honesty) in 01-shared-axioms.md. Used by Generate-QualityScorecard.ps1 to evaluate Rule 19 family separation against actuals; used by Validate-PipelineState.ps1 to lint Rule 20 integrity (intended_handle drift, missing required phases, family-lookup mismatches against the model registry).",
+  "type": "object",
+  "required": ["framework_version", "kb", "model_assignment", "phase_log"],
+  "additionalProperties": true,
+  "properties": {
+    "framework_version": {
+      "type": "string",
+      "pattern": "^v3\\.1\\.\\d+$",
+      "description": "The framework version that produced this state file. v3.1.11 introduced the YAML format; earlier versions used pipeline_state.md."
+    },
+    "kb": {
+      "type": "object",
+      "required": ["name", "root", "type"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "root": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": ["legal_topic", "company", "litigation", "person", "technology", "general"],
+          "description": "Selects the kb_type_weights profile in audit-templates/kb-quality-dimensions.yaml."
+        },
+        "audience": { "type": "string" },
+        "jurisdiction": { "type": "string" },
+        "host": { "type": "string", "enum": ["opencode", "copilot-cli"] },
+        "host_capability_level": { "type": "string", "pattern": "^L[0-9]+[a-z]?$" },
+        "created": { "type": "string", "format": "date" }
+      }
+    },
+    "model_assignment": {
+      "type": "object",
+      "required": ["lead", "builder_a", "builder_b", "critic_pool", "factcheck_pool_5a_5b_5c", "factcheck_pool_5d_5e", "factcheck_6b", "auditor_7", "memo_factcheck_8"],
+      "additionalProperties": true,
+      "description": "Phase 0.0 intended assignment. Per Rule 20, every phase_log[].intended_handle MUST be one of these handle values. Mid-build re-assignment is permitted only via the Mid-Build Override Flow which atomically rewrites this block + appends a mid_build_overrides[] entry.",
+      "properties": {
+        "preset": { "type": "string" },
+        "lead": { "type": "string", "minLength": 1 },
+        "builder_a": { "type": "string", "minLength": 1 },
+        "builder_b": { "type": "string", "minLength": 1 },
+        "critic_pool": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "factcheck_pool_5a_5b_5c": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "factcheck_pool_5d_5e": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "factcheck_6b": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "auditor_7": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "memo_factcheck_8": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "rule_19_opt_out": { "type": "string", "enum": ["not-required", "acknowledged", "operator-declined"] },
+        "validation_report": { "type": "string" }
+      }
+    },
+    "phase_log": {
+      "type": "array",
+      "description": "One entry per dispatch. For per-topic content phases, log one entry per (builder, topic) pair. Rule 20 violations: missing required fields; intended_handle not in model_assignment; dispatch_status not in enum.",
+      "items": {
+        "type": "object",
+        "required": ["phase_id", "role", "intended_handle", "actual_model_id", "actual_provider", "actual_family", "dispatch_status", "timestamp"],
+        "additionalProperties": true,
+        "properties": {
+          "phase_id": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+[a-z]?(-[a-z0-9-]+)?$",
+            "description": "Phase identifier like '5.2' or '5.2-topic-1-formation'. The numeric prefix is used for Rule 19 cross-phase pair lookup."
+          },
+          "phase_label": { "type": "string" },
+          "topic_id": { "type": "string" },
+          "role": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Framework role (Lead | Builder A | Builder B | Critic | Fact-checker | Auditor | Reviewer | Stress-test memo fact-checker). Used by Quality Scorecard's within-phase distinctness checks (Builder A vs Builder B; Lead-acted-as-Builder anti-pattern)."
+          },
+          "intended_handle": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Per Rule 20 integrity (v3.1.10): MUST be one of the handle values in model_assignment. The orchestrator MUST NOT invent per-phase handles."
+          },
+          "actual_model_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The model_id the adapter's dispatch.ps1 actually called. For OpenCode silent-fallback to parent, this is the parent model_id, NOT the intended."
+          },
+          "actual_provider": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actual_family": {
+            "type": "string",
+            "minLength": 1,
+            "description": "From model-registry.yaml lookup by actual_model_id. Required for Rule 19 family-separation evaluation."
+          },
+          "dispatch_status": {
+            "type": "string",
+            "enum": ["dispatched-as-intended", "dispatched-with-substitution", "dispatched-after-override", "failed-then-acknowledged-opt-out"],
+            "description": "Rule 20 enum. dispatched-with-substitution: actual != intended without operator acknowledgment (e.g., OpenCode silent fallback). dispatched-after-override: actual != intended because mid-build override flow re-assigned. failed-then-acknowledged-opt-out: operator explicitly acknowledged Rule 19 degradation for this dispatch."
+          },
+          "dispatch_fingerprint_match": {
+            "type": "boolean",
+            "description": "v3.1.10: did the response's DISPATCH-FINGERPRINT match the expected one from opencode.json? Required true for dispatched-as-intended on OpenCode hosts."
+          },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "mid_build_overrides": {
+      "type": "array",
+      "description": "Operator-acknowledged mid-build re-assignments. Each entry MUST correspond to an atomic rewrite of model_assignment + a subsequent phase_log entry with dispatch_status: dispatched-after-override.",
+      "items": {
+        "type": "object",
+        "required": ["timestamp", "role", "old_handle", "new_handle", "reason", "operator_acknowledgment"],
+        "additionalProperties": true,
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "role": { "type": "string", "minLength": 1 },
+          "old_handle": { "type": "string", "minLength": 1 },
+          "new_handle": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 },
+          "operator_acknowledgment": { "type": ["string", "boolean"] },
+          "rule19_revalidation": { "type": "string", "enum": ["passed", "failed", "not-run"] }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,146 @@
+# Quality dimension weights and thresholds — KB Creation Framework v3 Quality Scorecard
+#
+# Loaded by Generate-QualityScorecard.ps1. Weights are tunable per KB type. Defaults below
+# are designed to satisfy the discipline in the v3 plan §4.3-4.5:
+#   - Stress-test pass rate is heaviest (it's the proof of the pudding)
+#   - Citation density and qualifier preservation are joint heaviest non-stress
+#     (the two failure modes the framework most explicitly prevents)
+#   - Structural compliance is lightest (failure is binary-blocking anyway)
+#
+# v3.1.14 added "Citation-engine verification rate" (LlamaIndex CitationQueryEngine).
+# v3.1.15 added "Test-set passage rate" (Inspect framework). Weights re-balanced;
+# all profiles MUST sum to 1.00.
+#
+# If a KB's scoping report sets kb_type, the relevant kb_type weights override defaults.
+# If no per-kb_type entry exists, default weights apply.
+#
+# Slug convention: lowercase, non-alphanumeric runs replaced with single underscore;
+# `&` is dropped (NOT spelled as `_and_`). Matches Generate-QualityScorecard.ps1
+# Get-Weights slug generation.
+
+version: 1.1
+last_updated: 2026-06-08
+
+# Threshold for each dimension below which the dimension is "below threshold"
+# (used to determine PASS vs PASS-WITH-CAVEATS vs CONDITIONAL verdict)
+thresholds:
+  citation_density_primary_source_rate: 80
+  register_tag_coverage_extraction_integrity: 85
+  cross_reference_fidelity: 90
+  qualifier_preservation: 80
+  volatile_tag_coverage: 95
+  stress_test_pass_rate: 100
+  structural_size_compliance: 90
+  citation_engine_verification_rate: 80    # v3.1.14
+  test_set_passage_rate: 80                # v3.1.15
+
+# Verdict-decision rules
+verdict:
+  pass:
+    composite_min: 90
+    every_dimension_at_or_above_threshold: true
+    stress_test_pass_rate_must_be: 100
+  pass_with_caveats:
+    composite_min: 80
+    no_dimension_more_than_below_threshold_by: 10
+    stress_test_pass_rate_must_be: 100
+  conditional:
+    composite_min: 70
+    stress_test_pass_rate_min: 80
+    no_critical_audit_finding: true
+  # fail = anything else
+
+# Default weights (used when scoping_report does not specify kb_type).
+# v3.1.15 — 9 dimensions, sum 1.00. Citation-engine + test-set carved out of
+# stress-test (-0.05) + citation-density (-0.05) + register (-0.05) + structural (0).
+default_weights:
+  citation_density_primary_source_rate: 0.10           # was 0.20 (v3.12); -0.05 to citation-engine, -0.05 to test-set
+  register_tag_coverage_extraction_integrity: 0.05     # was 0.10 (v3.12)
+  cross_reference_fidelity: 0.15
+  qualifier_preservation: 0.20
+  volatile_tag_coverage: 0.05
+  stress_test_pass_rate: 0.20                          # was 0.25 (v3.12); -0.05 to test-set
+  structural_size_compliance: 0.05
+  citation_engine_verification_rate: 0.10              # v3.1.14
+  test_set_passage_rate: 0.10                          # v3.1.15
+
+# KB-type-specific overrides. Sum to 1.00 per profile.
+kb_type_weights:
+
+  # Legal / regulatory Topic KBs: heavier weight on qualifier preservation and
+  # cross-reference fidelity (where these KBs most frequently fail in production)
+  legal_topic:
+    citation_density_primary_source_rate: 0.10
+    register_tag_coverage_extraction_integrity: 0.05
+    cross_reference_fidelity: 0.20                     # +5 vs default
+    qualifier_preservation: 0.25                       # +5 vs default
+    volatile_tag_coverage: 0.05
+    stress_test_pass_rate: 0.10                        # -10 vs default
+    structural_size_compliance: 0.05
+    citation_engine_verification_rate: 0.10
+    test_set_passage_rate: 0.10
+    # sum: 1.00
+
+  # Company KBs: heavier weight on citation density and volatile coverage
+  company:
+    citation_density_primary_source_rate: 0.15         # +5 vs default
+    register_tag_coverage_extraction_integrity: 0.05
+    cross_reference_fidelity: 0.10                     # -5
+    qualifier_preservation: 0.10                       # -10
+    volatile_tag_coverage: 0.15                        # +10
+    stress_test_pass_rate: 0.20
+    structural_size_compliance: 0.05
+    citation_engine_verification_rate: 0.10
+    test_set_passage_rate: 0.10
+    # sum: 1.00
+
+  # Litigation analysis KBs: heaviest on cross-reference fidelity
+  litigation:
+    citation_density_primary_source_rate: 0.10
+    register_tag_coverage_extraction_integrity: 0.05
+    cross_reference_fidelity: 0.25                     # +10
+    qualifier_preservation: 0.15                       # -5
+    volatile_tag_coverage: 0.05
+    stress_test_pass_rate: 0.10                        # -10
+    structural_size_compliance: 0.10                   # +5
+    citation_engine_verification_rate: 0.10
+    test_set_passage_rate: 0.10
+    # sum: 1.00
+
+  # Person KBs: lighter on operative-claim dimensions; heavier on citation density
+  person:
+    citation_density_primary_source_rate: 0.20         # +10
+    register_tag_coverage_extraction_integrity: 0.10   # +5
+    cross_reference_fidelity: 0.10                     # -5
+    qualifier_preservation: 0.05                       # -15
+    volatile_tag_coverage: 0.10                        # +5
+    stress_test_pass_rate: 0.20
+    structural_size_compliance: 0.05
+    citation_engine_verification_rate: 0.10
+    test_set_passage_rate: 0.10
+    # sum: 1.00
+
+  # Technology / standards KBs: heaviest on version specificity
+  technology:
+    citation_density_primary_source_rate: 0.10
+    register_tag_coverage_extraction_integrity: 0.05
+    cross_reference_fidelity: 0.15
+    qualifier_preservation: 0.25                       # +5 (version specificity)
+    volatile_tag_coverage: 0.05
+    stress_test_pass_rate: 0.10                        # -10
+    structural_size_compliance: 0.05
+    citation_engine_verification_rate: 0.10
+    test_set_passage_rate: 0.15                        # +5 (high-stakes specs benefit from test-set)
+    # sum: 1.00
+
+# Family-separation exception handling — unchanged from v3.0.
+# Per plan §5.3: family-separation exceptions don't auto-downgrade the composite verdict
+# but DO tag the affected dimension scores.
+family_separation_exception_handling:
+  auto_downgrade_composite: false
+  tagged_dimensions_when_exception_present:
+    - cross_reference_fidelity
+    - qualifier_preservation
+    - citation_density_primary_source_rate
+  scorecard_methodology_note: "Build had a Rule 19 (Model-Family Separation) opt-out. Affected dimension scores are marked with the verification-independence-degraded tag. Reviewer should consider whether the same content checked itself."
+

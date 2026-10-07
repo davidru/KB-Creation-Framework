@@ -1,0 +1,73 @@
+# Manually curated model capability tiers for KB Creation Framework v3.1.
+# Patterns are glob-style and matched against provider model_id values.
+# More specific patterns should override broader families during recommendation.
+_about:
+  last_updated: 2026-06-07
+  caveat: "Model quality changes quickly. Treat these tiers as release-time defaults; refresh when providers release materially new models."
+  tier_order: [premium, advanced, mid, budget]
+tiers:
+  premium:
+    description: "Best-fit reasoning, lead, audit, and high-stakes fact-check models."
+    patterns:
+      - claude-opus-*
+      - anthropic/claude-opus-*
+      - claude-3.5-sonnet*
+      - anthropic/claude-3.5-sonnet*
+      - gpt-5*
+      - openai/gpt-5*
+      - o1*
+      - openai/o1*
+      - gemini-3-pro*
+      - google/gemini-3-pro*
+      - gemini-3.1-pro*
+      - google/gemini-3.1-pro*
+  advanced:
+    description: "Strong general-purpose models for builders, auditors, and lower-risk lead work."
+    patterns:
+      - claude-3.5-haiku*
+      - anthropic/claude-3.5-haiku*
+      - claude-sonnet-4-5*
+      - claude-sonnet-4.5*
+      - anthropic/claude-sonnet-4-5*
+      - anthropic/claude-sonnet-4.5*
+      - claude-sonnet-4.6*
+      - anthropic/claude-sonnet-4.6*
+      - gpt-5.4
+      - openai/gpt-5.4
+      - gpt-4o
+      - openai/gpt-4o
+      - gemini-3.5-flash*
+      - google/gemini-3.5-flash*
+      - gemini-2.5-pro*
+      - google/gemini-2.5-pro*
+  mid:
+    description: "Cost-efficient models suitable for builders, critics, and smoke-test work."
+    patterns:
+      - claude-3-haiku*
+      - anthropic/claude-3-haiku*
+      - gpt-4o-mini*
+      - openai/gpt-4o-mini*
+      - gpt-5-mini*
+      - openai/gpt-5-mini*
+      - gpt-5.4-mini*
+      - openai/gpt-5.4-mini*
+      - gemini-1.5-flash-8b*
+      - google/gemini-1.5-flash-8b*
+      - gemini-2.5-flash*
+      - google/gemini-2.5-flash*
+      - deepseek/deepseek-chat*
+      - deepseek-chat*
+      - openai/gpt-oss-120b*
+  budget:
+    description: "Low-cost or local options suitable for rubber-duck critics and exploratory runs."
+    patterns:
+      - llama-3.1-70b*
+      - llama3.1:70b*
+      - llama3.3:70b*
+      - meta-llama/llama-3.1-70b*
+      - mistral-large*
+      - mistralai/mistral-large*
+      - mistral-small*
+      - mistral-small:*
+      - qwen/*
+      - qwen*:*

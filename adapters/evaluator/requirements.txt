@@ -1,0 +1,11 @@
+# adapters/evaluator/requirements.txt — v3.1.15
+#
+# Install with: pip install -r adapters/evaluator/requirements.txt
+#
+# LLM mode requires these packages. Fallback mode requires only Python stdlib.
+
+inspect-ai>=0.4
+
+# LLM client packages — install the one matching your test-set.yaml solver.llm.provider
+# openai>=1.0      # for OpenAI + OpenRouter (OpenAI-compatible)
+# anthropic>=0.30  # for Anthropic

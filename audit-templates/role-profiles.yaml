@@ -1,0 +1,74 @@
+# Role profiles for KB Creation Framework v3.1 model recommendation.
+# Drives Recommend-Models.ps1 role filtering, scoring weights, and cost estimates.
+# Operators may edit these values for local policy or model-market changes.
+_about:
+  last_updated: 2026-06-07
+  schema_version: 1
+  notes: "Role requirements are guardrails, not guarantees. Validate recommended models against current provider catalogs and task-specific needs."
+roles:
+  lead:
+    requirements:
+      min_context_length: 128000
+      capability_tier_allowlist: [premium, advanced]
+      supports_tools: true
+      preferred_families: [anthropic, openai, google]
+    typical_token_ratio:
+      input: 0.70
+      output: 0.30
+    sensitivity_to_quality: high
+    sensitivity_to_cost: low
+  builder_a_b:
+    requirements:
+      min_context_length: 128000
+      capability_tier_allowlist: [premium, advanced, mid]
+      supports_tools: false
+      preferred_families: [google, openai, anthropic, mistral, deepseek]
+    typical_token_ratio:
+      input: 0.78
+      output: 0.22
+    sensitivity_to_quality: medium
+    sensitivity_to_cost: high
+  critic_rubber_duck:
+    requirements:
+      min_context_length: 64000
+      capability_tier_allowlist: [premium, advanced, mid, budget]
+      supports_tools: false
+      preferred_families: [anthropic, openai, google, deepseek, mistral, meta-llama]
+    typical_token_ratio:
+      input: 0.82
+      output: 0.18
+    sensitivity_to_quality: high
+    sensitivity_to_cost: medium
+  fact_checker:
+    requirements:
+      min_context_length: 64000
+      capability_tier_allowlist: [premium, advanced, mid]
+      supports_tools: true
+      preferred_families: [openai, anthropic, google, deepseek]
+    typical_token_ratio:
+      input: 0.86
+      output: 0.14
+    sensitivity_to_quality: high
+    sensitivity_to_cost: medium
+  auditor:
+    requirements:
+      min_context_length: 128000
+      capability_tier_allowlist: [premium, advanced]
+      supports_tools: true
+      preferred_families: [anthropic, openai, google]
+    typical_token_ratio:
+      input: 0.88
+      output: 0.12
+    sensitivity_to_quality: high
+    sensitivity_to_cost: low
+  memo_writer:
+    requirements:
+      min_context_length: 64000
+      capability_tier_allowlist: [premium, advanced, mid]
+      supports_tools: false
+      preferred_families: [anthropic, openai, google, mistral]
+    typical_token_ratio:
+      input: 0.65
+      output: 0.35
+    sensitivity_to_quality: high
+    sensitivity_to_cost: medium

@@ -1,0 +1,326 @@
+# Phase Contracts — KB Creation Framework v3.1.12+
+#
+# Declares each framework phase's consumes/produces contract. Loaded by
+# Validate-Pipeline.ps1 to verify the framework's end-to-end DAG before any
+# model spend (consumed artifacts must be produced by an earlier phase or
+# listed as external_inputs; no cycles; rule_19_pair phases must execute as
+# cross-family per pipeline_state.yaml actuals).
+#
+# This file is the source of truth for what each phase reads/writes. Updating
+# a phase prompt to add a new consumed artifact requires updating this file
+# in the same change.
+#
+# Inspired by haystack's pipeline.connect() type validation at construction
+# time — catches missing-artifact / out-of-order-phase issues mechanically.
+#
+# Status: v3.1.12 initial cut covers all 21 prompts under prompts/. Edge-case
+# consumes/produces (sub-phases, optional artifacts) may need refinement
+# based on real-build observations.
+
+framework_version: v3.1.12
+
+external_inputs:
+  - sources/operator-scope-input.md           # KB scope, audience, jurisdiction from operator
+  - external/primary-sources/                  # Primary-source documents retrieved by adapters
+  - external/primary-sources/cache/           # v3.1.13 — adapter-fetched primary sources (eCFR / Congress / Federal Register / GovInfo)
+  - model-registry.yaml                        # Framework-level model registry
+  - audit-templates/model-presets.yaml         # Framework-level Phase 0.0 model presets
+  - sources/                                   # Directory glob — used by Phase 7.0 to consume all upstream sources artifacts
+  - sources/source-registry.yaml               # v3.1.13 — operator-curated primary-source watchlist (optional but required for auto-fetch)
+  - audit/test-set.yaml                        # v3.1.15 — operator-curated ground-truth questions for Phase 7.0 evaluation
+
+phases:
+  - phase_id: '0.0'
+    name: Model Selection
+    prompt: prompts/00a-model-selection.md
+    consumes:
+      - sources/operator-scope-input.md
+      - model-registry.yaml
+      - audit-templates/model-presets.yaml
+    produces:
+      - sources/scoping_report.md            # model_assignment block
+      - sources/pipeline_state.yaml           # framework_version + kb + model_assignment + phase_log[0]
+      - sources/model_assignment_validation.md
+      - opencode.json                         # via Render-OpenCodeAgents.ps1 (when host=opencode)
+    rule_19_role: assignment
+
+  - phase_id: '0.2'
+    name: Rubber-Duck Critique — Scoping Report
+    prompt: prompts/00b-rubber-duck-scoping.md
+    consumes:
+      - sources/scoping_report.md
+    produces:
+      - sources/scoping_critique.md
+    rule_19_role: verifier
+    rule_19_pair: ['0.2','0.0']
+
+  - phase_id: '1.1'
+    name: Builder Research
+    prompt: prompts/11-builder-research.md
+    consumes:
+      - sources/scoping_report.md
+      - sources/scoping_critique.md
+      - external/primary-sources/
+      - external/primary-sources/cache/         # v3.1.13 — pre-fetched by adapters (when sources/source-registry.yaml present)
+      - sources/source-registry.yaml             # v3.1.13 — optional; triggers Phase 1.1 pre-fetch via adapters/primary-source/fetch_all.ps1
+    produces:
+      - sources/builder-a-research.md
+      - sources/builder-b-research.md
+      - external/primary-sources/cache/         # v3.1.13 — Phase 1.1 also writes (re-emits) the cache when auto_fetch_on_phase_1_1: true
+    rule_19_role: producer
+
+  - phase_id: '1.2'
+    name: Rubber-Duck Critique — Topic Structure
+    prompt: prompts/12-rubber-duck-topics.md
+    consumes:
+      - sources/builder-a-research.md
+      - sources/builder-b-research.md
+    produces:
+      - sources/topic-structure-critique.md
+    rule_19_role: verifier
+    rule_19_pair: ['1.2','1.1']
+
+  - phase_id: '1.3'
+    name: Builder Draft (per-topic content)
+    prompt: prompts/13-builder-draft.md
+    consumes:
+      - sources/builder-a-research.md
+      - sources/builder-b-research.md
+      - sources/topic-structure-critique.md
+    produces:
+      - sources/builder-a-drafts/             # one file per topic per builder
+      - sources/builder-b-drafts/
+    rule_19_role: producer
+
+  - phase_id: '2.0'
+    name: Lead Review
+    prompt: prompts/20-lead-review.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+    produces:
+      - sources/lead-review.md
+    rule_19_role: neutral
+
+  - phase_id: '3.0'
+    name: Builder Revision
+    prompt: prompts/30-builder-revision.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+      - sources/lead-review.md
+    produces:
+      - sources/builder-a-drafts/             # in-place revision
+      - sources/builder-b-drafts/
+    rule_19_role: producer
+    iteration:
+      max_iterations: 3
+      termination_condition: "Lead-review verdict == PASS OR max_iterations reached"
+
+  - phase_id: '4.0'
+    name: Lead Comparison + Single-Source Inventory + Compliance Check
+    prompt: prompts/40-lead-comparison.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+    produces:
+      - sources/comparison_report.md
+      - sources/single-source-inventory.md
+      - sources/compliance-check.md
+    rule_19_role: neutral
+
+  - phase_id: '5.1'
+    name: Fact-Check — Currency Verification
+    prompt: prompts/51-factcheck-currency.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+    produces:
+      - sources/factcheck_currency.md
+    rule_19_role: verifier
+    rule_19_pair: ['5.1','1.3']
+
+  - phase_id: '5.2'
+    name: Fact-Check — Citation Verification
+    prompt: prompts/52-factcheck-citations.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+    produces:
+      - sources/factcheck_citations.md
+    rule_19_role: verifier
+    rule_19_pair: ['5.2','1.3']
+
+  - phase_id: '5.3'
+    name: Fact-Check — Classification Verification
+    prompt: prompts/53-factcheck-classification.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+    produces:
+      - sources/factcheck_classification.md
+    rule_19_role: verifier
+    rule_19_pair: ['5.3','1.3']
+
+  - phase_id: '5.4'
+    name: Fact-Check — Single-Source Claim Verification
+    prompt: prompts/54-factcheck-single-source.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+      - sources/single-source-inventory.md
+    produces:
+      - sources/factcheck_single_source.md
+    rule_19_role: verifier
+    rule_19_pair: ['5.4','5.2']
+
+  - phase_id: '5.5'
+    name: Fact-Check — Operative-Claim & Cross-Reference Fidelity
+    prompt: prompts/55-factcheck-operative-claims.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+    produces:
+      - sources/factcheck_operative_claims.md
+    rule_19_role: verifier
+    rule_19_pair: ['5.5','1.3']
+
+  - phase_id: '5.6'
+    name: Citation-Engine Fact-Check (LlamaIndex / fallback)
+    prompt: prompts/56-factcheck-citation-engine.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+      - external/primary-sources/cache/         # v3.1.13 — populated by v3.1.13 adapters or staged manually
+    produces:
+      - sources/factcheck_citation_engine.md
+      - sources/factcheck_citation_engine.json
+    rule_19_role: verifier
+    rule_19_pair: ['5.6','1.3']
+
+  - phase_id: '6.0'
+    name: Lead Assembly
+    prompt: prompts/60-lead-assembly.md
+    consumes:
+      - sources/builder-a-drafts/
+      - sources/builder-b-drafts/
+      - sources/comparison_report.md
+      - sources/factcheck_currency.md
+      - sources/factcheck_citations.md
+      - sources/factcheck_classification.md
+      - sources/factcheck_single_source.md
+      - sources/factcheck_operative_claims.md
+      - sources/factcheck_citation_engine.md     # v3.1.14
+    produces:
+      - full/                                  # per-topic assembled files
+      - index.md
+    rule_19_role: producer
+
+  - phase_id: '6.1'
+    name: Rubber-Duck Critique — Assembled KB
+    prompt: prompts/61-rubber-duck-assembly.md
+    consumes:
+      - full/
+      - index.md
+    produces:
+      - sources/assembly_critique.md
+    rule_19_role: verifier
+    rule_19_pair: ['6.1','6.0']
+
+  - phase_id: '6.2'
+    name: Register Lint
+    prompt: prompts/62-register-lint.md
+    consumes:
+      - full/
+    produces:
+      - sources/register_lint_report.md
+    rule_19_role: neutral
+
+  - phase_id: '6.3'
+    name: Three-Tier Extraction + Filename Validation
+    prompt: prompts/63-extraction-and-filename-validation.md
+    consumes:
+      - full/
+      - sources/source-registry.yaml             # v3.1.13 — optional; triggers Phase 6.3 drift detection via adapters/primary-source/fetch_all.ps1 --drift-report-only
+      - external/primary-sources/cache/         # v3.1.13 — for drift detection re-fetch
+    produces:
+      - authority/                             # primary-source-only derived view
+      - practice/                              # practice-guidance derived view
+      - sources/authority_view_extraction.md
+      - sources/filename_validation.md
+      - sources/source_drift_report.md          # v3.1.13 — written by adapters/primary-source/fetch_all.ps1; foundational drift blocks the build
+      - table-of-authorities.md
+    rule_19_role: neutral
+
+  - phase_id: '6.4'
+    name: Post-Assembly Fact-Check (SUPERSET MODE)
+    prompt: prompts/64-post-assembly-factcheck.md
+    consumes:
+      - full/
+      - authority/
+    produces:
+      - sources/post_assembly_factcheck.md
+    rule_19_role: verifier
+    rule_19_pair: ['6.4','6.0']
+
+  - phase_id: '6.5'
+    name: Quality Tier Audit + Mandatory Deepening
+    prompt: prompts/65-quality-tier-audit.md
+    consumes:
+      - full/
+      - sources/post_assembly_factcheck.md
+    produces:
+      - sources/quality_tier_audit.md
+    rule_19_role: verifier
+    rule_19_pair: ['6.5','6.0']
+    iteration:
+      max_iterations: 2
+      termination_condition: "All topics meet tier threshold OR max_iterations reached"
+
+  - phase_id: '7.0'
+    name: Final Audit + Quality Scorecard Generation
+    prompt: prompts/70-final-audit.md
+    consumes:
+      - full/
+      - authority/
+      - practice/
+      - sources/                              # all factcheck + audit artifacts
+      - sources/source_drift_report.md         # v3.1.13 — if present, audit must flag any foundational drift
+      - sources/factcheck_citation_engine.md   # v3.1.14
+      - sources/factcheck_citation_engine.json # v3.1.14
+      - audit/test-set.yaml                    # v3.1.15 — operator-curated ground-truth questions (optional but recommended)
+      - table-of-authorities.md
+    produces:
+      - sources/audit_report.md
+      - audit/test-set-results.md              # v3.1.15 — written by adapters/evaluator/inspect-runner.ps1
+      - audit/test-set-results.json            # v3.1.15
+      - audit/kb-quality-scorecard.md          # via Generate-QualityScorecard.ps1
+      - audit/kb-quality.json
+      - audit/kb-quality-history.json
+    rule_19_role: verifier
+    rule_19_pair: ['7.0','6.4']
+
+  - phase_id: '8.0'
+    name: Downstream Stress Test
+    prompt: prompts/80-downstream-stress-test.md
+    consumes:
+      - full/
+      - authority/
+      - sources/audit_report.md
+    produces:
+      - sources/stress_test_report_downstream.md
+    rule_19_role: verifier
+    rule_19_pair: ['8.0','6.4']
+
+  - phase_id: '8.5'
+    name: Adversarial Red-Team Stress Test
+    prompt: prompts/85-adversarial-red-team.md
+    consumes:
+      - full/
+      - authority/
+      - sources/audit_report.md
+    produces:
+      - sources/stress_test_report_adversarial.md
+    rule_19_role: verifier
+    rule_19_pair: ['8.5','6.4']
+    optional: true

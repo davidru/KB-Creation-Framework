@@ -1,0 +1,83 @@
+_about:
+  purpose: "Records whether /api/v1/models?category=<name> returns a non-empty model set."
+  last_checked: 2026-06-07
+  generated_by: Discover-OpenRouterCategories.ps1
+  caveat: OpenRouter does not publish classification criteria; treat categories as one recommendation signal only.
+categories:
+  legal:
+    status: probed
+    last_checked: 2026-06-07
+    model_count_at_check: 18
+  programming:
+    status: probed
+    last_checked: 2026-06-07
+    model_count_at_check: 20
+  finance:
+    status: probed
+    last_checked: 2026-06-07
+    model_count_at_check: 20
+  science:
+    status: probed
+    last_checked: 2026-06-07
+    model_count_at_check: 20
+  academic:
+    status: error
+    last_checked: 2026-06-07
+    model_count_at_check: null
+    error: "Response status code does not indicate success: 400 (Bad Request)."
+  marketing:
+    status: probed
+    last_checked: 2026-06-07
+    model_count_at_check: 20
+  roleplay:
+    status: probed
+    last_checked: 2026-06-07
+    model_count_at_check: 20
+  translation:
+    status: probed
+    last_checked: 2026-06-07
+    model_count_at_check: 20
+  technology:
+    status: probed
+    last_checked: 2026-06-07
+    model_count_at_check: 20
+  general:
+    status: error
+    last_checked: 2026-06-07
+    model_count_at_check: null
+    error: "Response status code does not indicate success: 400 (Bad Request)."
+  business:
+    status: error
+    last_checked: 2026-06-07
+    model_count_at_check: null
+    error: "Response status code does not indicate success: 400 (Bad Request)."
+  healthcare:
+    status: error
+    last_checked: 2026-06-07
+    model_count_at_check: null
+    error: "Response status code does not indicate success: 400 (Bad Request)."
+  education:
+    status: error
+    last_checked: 2026-06-07
+    model_count_at_check: null
+    error: "Response status code does not indicate success: 400 (Bad Request)."
+  customer-service:
+    status: error
+    last_checked: 2026-06-07
+    model_count_at_check: null
+    error: "Response status code does not indicate success: 400 (Bad Request)."
+  content:
+    status: error
+    last_checked: 2026-06-07
+    model_count_at_check: null
+    error: "Response status code does not indicate success: 400 (Bad Request)."
+  code-completion:
+    status: error
+    last_checked: 2026-06-07
+    model_count_at_check: null
+    error: "Response status code does not indicate success: 400 (Bad Request)."
+  image-generation:
+    status: error
+    last_checked: 2026-06-07
+    model_count_at_check: null
+    error: "Response status code does not indicate success: 400 (Bad Request)."
